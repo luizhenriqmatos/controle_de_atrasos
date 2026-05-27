@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Atrasos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos Globais */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        /* Container da Tabela */
+        .table-container {
+            background-color: #1e1e2d;
+            padding: 20px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 900px;
+            overflow-x: auto;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Tabela */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            text-align: center;
+            padding: 12px;
+        }
+
+        thead th {
+            background-color: #2a2a40;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #29293f;
+        }
+
+        tr:hover {
+            background-color: #34344a;
+        }
+
+        td {
+            color: white;
+        }
+
+        button {
+            background-color: #407bff;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            font-size: 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056e5;
+        }
+    </style>
+</head>
+<body>
+    <div class="table-container">
+        <h1>Controle de Atrasos Semanal</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Histórico de Atrasos</th>
+                    <th>Contagem de Remotos Perdidos</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                <!-- As linhas serão inseridas dinamicamente -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Lista de colaboradores
+        const colaboradores = [
+            "André", "Cleyton", "Danilo", "Henrique Lebre", "Henrique Matos",
+            "Kostantinos", "Liesley", "Nailson", "Thiago Sodré", "Thiago Vitoria"
+        ];
+
+        // Persistência de dados no LocalStorage
+        const savedData = JSON.parse(localStorage.getItem("colaboradoresData")) || {};
+        const MAX_ATRASOS = 3; // Mude aqui o limite de atrasos por semana
+
+        // Inicializar tabela
+        const tbody = document.getElementById("table-body");
+        colaboradores.forEach(nome => {
+            const atrasos = savedData[nome]?.atrasos || []; // Histórico salvo no LocalStorage
+            const linha = criarLinha(nome, atrasos); // Cria as linhas iniciais
+            tbody.appendChild(linha);
+        });
+
+        // Função para salvar os dados no LocalStorage
+        function salvarDados(nome, atrasos) {
+            savedData[nome] = { atrasos };
+            localStorage.setItem("colaboradoresData", JSON.stringify(savedData));
+        }
+
+        // Função para criar uma nova linha da tabela
+        function criarLinha(nome, atrasos = []) {
+            const tr = document.createElement("tr");
+
+            // Coluna Nome
+            const tdNome = document.createElement("td");
+            tdNome.textContent = nome;
+
+            // Coluna Histórico de Atrasos
+            const tdAtrasos = document.createElement("td");
+            const botaoAtraso = document.createElement("button");
+            botaoAtraso.textContent = "Adicionar Atraso";
+            tdAtrasos.appendChild(botaoAtraso);
+            tdAtrasos.innerHTML += `<p>${atrasos.map(a => new Date(a).toLocaleString()).join("<br>")}</p>`;
+
+            // Coluna Contagem de Remotos Perdidos
+            const tdPerdidos = document.createElement("td");
+            const diasRemotoPerdidos = Math.max(0, atrasos.length - MAX_ATRASOS);
+            tdPerdidos.textContent = diasRemotoPerdidos > 0 ? `-${diasRemotoPerdidos} dia(s)` : "0";
+
+            // Lógica do botão Adicionar Atraso
+            botaoAtraso.addEventListener("click", function () {
+                atrasos.push(Date.now());
+                salvarDados(nome, atrasos);
+
+                // Atualizar UI
+                atualizarLinha(tdAtrasos, atrasos);
+                tdPerdidos.textContent = Math.max(0, atrasos.length - MAX_ATRASOS) > 0 ? 
+                    `-${Math.max(0, atrasos.length - MAX_ATRASOS)} dia(s)` : "0";
+            });
+
+            tr.appendChild(tdNome);
+            tr.appendChild(tdAtrasos);
+            tr.appendChild(tdPerdidos);
+
+            return tr;
+        }
+
+        // Atualiza a linha de atrasos com as novas data/hora
+        function atualizarLinha(td, atrasos) {
+            const botao = td.querySelector("button");
+            td.innerHTML = ""; // Limpa o conteúdo anterior
+            td.appendChild(botao);
+            td.innerHTML += `<p>${atrasos.map(a => new Date(a).toLocaleString()).join("<br>")}</p>`;
+        }
+    </script>
+</body>
+</html>
