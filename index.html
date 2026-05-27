@@ -173,6 +173,17 @@
                     colab.id === id ? { ...colab, justificativa: texto } : colab
                 ));
             };
+            const alterarRemotosPerdidos = (id, delta) => {
+                if (!isAdmin) return;
+                setColaboradores(prev => prev.map(colab => {
+                    if (colab.id === id) {
+                        // Salva o ajuste manual isoladamente para não sobrescrever o cálculo automático
+                        const atual = colab.remotosPerdidos || 0;
+                        return { ...colab, remotosPerdidos: atual + delta };
+                    }
+                    return colab;
+                }));
+            };
 
             // --- LÓGICA DE AUTENTICAÇÃO ---
             const handleLogin = (e) => {
@@ -258,6 +269,7 @@
                         </header>
 
                         {/* TABELA DE DADOS */}
+                        {/* TABELA DE DADOS */}
                         <div className="bg-cyber-panel border border-cyber-border rounded-lg shadow-2xl overflow-hidden">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
@@ -271,8 +283,14 @@
                                     </thead>
                                     <tbody className="divide-y divide-cyber-border text-sm font-mono">
                                         {colaboradores.map((colab) => {
-                                        
-                                            const temPenalidade = remotosPerdidos > 0;
+                                            
+                                            // Lógica: 1 remoto perdido a cada 2 atrasos + ajustes manuais do Admin
+                                            const remotosPerdidosManuais = colab.remotosPerdidos || 0;
+                                            const remotosPerdidosCalculados = Math.floor(colab.atrasos / 2);
+                                            
+                                            // Math.max impede que o contador final mostre valores negativos
+                                            const totalRemotosPerdidos = Math.max(0, remotosPerdidosCalculados + remotosPerdidosManuais);
+                                            const temPenalidade = totalRemotosPerdidos > 0;
 
                                             return (
                                                 <tr key={colab.id} className="hover:bg-white/[0.02] transition-colors group">
@@ -315,42 +333,40 @@
                                                         />
                                                     </td>
                                                     
-                                                    {/* 4. Remotos Perdidos (Calculado) */}
-                                                    {/* 4. Remotos Perdidos (Contador) */}
-<td className="p-4 text-center">
-    <div className="flex items-center justify-center gap-3">
-        
-        {/* Botão de Diminuir (-) */}
-        {isAdmin && (
-            <button 
-                onClick={() => alterarRemotosPerdidos(colab.id, -1)}
-                className="text-cyber-muted hover:text-cyber-danger w-6 h-6 flex items-center justify-center rounded bg-white/5 hover:bg-cyber-danger/10 active:scale-95 transition-all font-bold"
-            >
-                -
-            </button>
-        )}
+                                                    {/* 4. Remotos Perdidos (Calculado + Manual) */}
+                                                    <td className="p-4 text-center">
+                                                        <div className="flex items-center justify-center gap-3">
+                                                            
+                                                            {/* Botão de Diminuir (-) */}
+                                                            {isAdmin && (
+                                                                <button 
+                                                                    onClick={() => alterarRemotosPerdidos(colab.id, -1)}
+                                                                    className="text-cyber-muted hover:text-cyber-danger w-6 h-6 flex items-center justify-center rounded bg-white/5 hover:bg-cyber-danger/10 active:scale-95 transition-all font-bold"
+                                                                >
+                                                                    -
+                                                                </button>
+                                                            )}
 
-        {/* Display do Valor */}
-        <div className={`inline-flex items-center justify-center px-3 py-1 rounded border min-w-[60px] transition-all ${colab.remotosPerdidos > 0 ? 'border-cyber-danger/50 text-cyber-danger bg-cyber-danger/10' : 'border-cyber-border text-cyber-muted bg-transparent'}`}>
-            {colab.remotosPerdidos > 0 && <span className="mr-1.5 animate-pulse">⚠</span>}
-            <span className="font-bold">
-                {colab.remotosPerdidos?.toString().padStart(2, '0') || '00'}
-            </span>
-        </div>
+                                                            {/* Display do Valor */}
+                                                            <div className={`inline-flex items-center justify-center px-3 py-1 rounded border min-w-[60px] transition-all ${temPenalidade ? 'border-cyber-danger/50 text-cyber-danger bg-cyber-danger/10' : 'border-cyber-border text-cyber-muted bg-transparent'}`}>
+                                                                {temPenalidade && <span className="mr-1.5 animate-pulse">⚠</span>}
+                                                                <span className="font-bold">
+                                                                    {totalRemotosPerdidos.toString().padStart(2, '0')}
+                                                                </span>
+                                                            </div>
 
-        {/* Botão de Aumentar (+) */}
-        {isAdmin && (
-            <button 
-                onClick={() => alterarRemotosPerdidos(colab.id, 1)}
-                className="text-cyber-muted hover:text-cyber-danger w-6 h-6 flex items-center justify-center rounded bg-white/5 hover:bg-cyber-danger/10 active:scale-95 transition-all font-bold"
-            >
-                +
-            </button>
-        )}
-        
-    </div>
-</td>
-                                                    
+                                                            {/* Botão de Aumentar (+) */}
+                                                            {isAdmin && (
+                                                                <button 
+                                                                    onClick={() => alterarRemotosPerdidos(colab.id, 1)}
+                                                                    className="text-cyber-muted hover:text-cyber-danger w-6 h-6 flex items-center justify-center rounded bg-white/5 hover:bg-cyber-danger/10 active:scale-95 transition-all font-bold"
+                                                                >
+                                                                    +
+                                                                </button>
+                                                            )}
+                                                            
+                                                        </div>
+                                                    </td>
                                                 </tr>
                                             );
                                         })}
