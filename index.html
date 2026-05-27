@@ -1,0 +1,352 @@
+```html
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYS.CTRL // Atrasos & Penalidades</title>
+    
+    <!-- Fontes: Inter para texto legível e Fira Code para dados e estética Dev/Terminal -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Configuração do Tema Tailwind -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    colors: {
+                        cyber: {
+                            bg: '#09090b',       // Fundo quase preto absoluto
+                            panel: '#111115',    // Fundo de painéis
+                            border: '#27272a',   // Bordas discretas (zinc-800)
+                            blue: '#1e3a8a',     // Azul escuro base
+                            glow: '#3b82f6',     // Azul neon para interações
+                            text: '#e4e4e7',     // Texto principal (zinc-200)
+                            muted: '#71717a',    // Texto secundário/desativado (zinc-500)
+                            danger: '#ef4444'    // Vermelho para penalidades
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- CSS Customizado para efeitos específicos de "Vibe Coding" -->
+    <style>
+        body {
+            background-color: #09090b;
+            color: #e4e4e7;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* Custom Scrollbar minimalista */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
+
+        /* Efeitos Glow e Inputs */
+        .cyber-input {
+            background: transparent;
+            border: 1px solid #27272a;
+            color: #e4e4e7;
+            transition: all 0.2s ease;
+        }
+        .cyber-input:focus:not(:read-only) {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.15);
+        }
+        .cyber-input:read-only {
+            border-color: transparent;
+            color: #71717a;
+            cursor: default;
+        }
+        
+        /* Efeito de scanline muito sutil no fundo (Opcional) */
+        .scanline {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0.3;
+        }
+    </style>
+
+    <!-- Dependências React e Babel via CDN para funcionamento num único arquivo -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="selection:bg-cyber-glow selection:text-black">
+    <div class="scanline"></div>
+    <div id="root"></div>
+
+    <!-- Lógica do Sistema (React JSX) -->
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Dados Iniciais: Ordem Alfabética Obrigatória
+        const COLABORADORES_INICIAIS = [
+            "André",
+            "Cleyton",
+            "Danilo",
+            "Henrique Lebre",
+            "Henrique Matos",
+            "Kostantinos",
+            "Liesley",
+            "Nailson",
+            "Thiago Sodré",
+            "Thiago Vitoria"
+        ].sort().map(nome => ({
+            id: nome.toLowerCase().replace(/ /g, '-'),
+            nome: nome,
+            atrasos: 0,
+            justificativa: ''
+        }));
+
+        const App = () => {
+            // --- ESTADO DO APLICATIVO ---
+            const [colaboradores, setColaboradores] = useState([]);
+            const [isAdmin, setIsAdmin] = useState(false);
+            
+            // Estado do Login
+            const [loginUser, setLoginUser] = useState('');
+            const [loginPass, setLoginPass] = useState('');
+            const [loginError, setLoginError] = useState(false);
+
+            // --- CICLO DE VIDA (Persistência) ---
+            // Carregar dados salvos ao iniciar
+            useEffect(() => {
+                const dadosSalvos = localStorage.getItem('sysctrl_dados');
+                const adminSalvo = localStorage.getItem('sysctrl_admin');
+                
+                if (dadosSalvos) {
+                    setColaboradores(JSON.parse(dadosSalvos));
+                } else {
+                    setColaboradores(COLABORADORES_INICIAIS);
+                }
+
+                if (adminSalvo === 'true') {
+                    setIsAdmin(true);
+                }
+            }, []);
+
+            // Salvar dados no localStorage sempre que 'colaboradores' mudar
+            useEffect(() => {
+                if (colaboradores.length > 0) {
+                    localStorage.setItem('sysctrl_dados', JSON.stringify(colaboradores));
+                }
+            }, [colaboradores]);
+
+            // --- LÓGICA DE NEGÓCIO ---
+            const calcularRemotosPerdidos = (atrasos) => {
+                // A cada 3 atrasos = 1 remoto perdido (Math.floor arredonda para baixo)
+                return Math.floor(atrasos / 3);
+            };
+
+            const alterarAtraso = (id, delta) => {
+                if (!isAdmin) return;
+                setColaboradores(prev => prev.map(colab => {
+                    if (colab.id === id) {
+                        const novoValor = Math.max(0, colab.atrasos + delta); // Não permite valores negativos
+                        return { ...colab, atrasos: novoValor };
+                    }
+                    return colab;
+                }));
+            };
+
+            const atualizarJustificativa = (id, texto) => {
+                if (!isAdmin) return;
+                setColaboradores(prev => prev.map(colab => 
+                    colab.id === id ? { ...colab, justificativa: texto } : colab
+                ));
+            };
+
+            // --- LÓGICA DE AUTENTICAÇÃO ---
+            const handleLogin = (e) => {
+                e.preventDefault();
+                // Credencial Padrão Simples conforme requisito
+                if (loginUser === 'admin' && loginPass === 'admin123') {
+                    setIsAdmin(true);
+                    setLoginError(false);
+                    localStorage.setItem('sysctrl_admin', 'true');
+                    setLoginUser('');
+                    setLoginPass('');
+                } else {
+                    setLoginError(true);
+                    setTimeout(() => setLoginError(false), 2000); // Reseta o erro após 2s
+                }
+            };
+
+            const handleLogout = () => {
+                setIsAdmin(false);
+                localStorage.removeItem('sysctrl_admin');
+            };
+
+            // --- RENDERIZAÇÃO ---
+            return (
+                <div className="min-h-screen p-4 md:p-8 font-sans">
+                    <div className="max-w-6xl mx-auto">
+                        
+                        {/* HEADER: Título e Login Discreto */}
+                        <header className="flex flex-col md:flex-row justify-between items-center mb-10 pb-4 border-b border-cyber-border">
+                            <div className="flex items-center gap-4 w-full md:w-auto mb-4 md:mb-0">
+                                <div className="w-3 h-8 bg-cyber-blue animate-pulse"></div>
+                                <div>
+                                    <h1 className="text-xl md:text-2xl font-mono font-bold tracking-tight text-cyber-text">
+                                        SYS.CTRL<span className="text-cyber-blue">_</span>
+                                    </h1>
+                                    <p className="text-xs font-mono text-cyber-muted uppercase tracking-widest">
+                                        Monitoramento de Assiduidade HQ
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* PAINEL DE AUTENTICAÇÃO */}
+                            <div className="w-full md:w-auto flex justify-end">
+                                {isAdmin ? (
+                                    <div className="flex items-center gap-4 text-sm font-mono">
+                                        <span className="text-emerald-400 flex items-center gap-2">
+                                            <span className="w-2 h-2 bg-emerald-400 rounded-full inline-block"></span>
+                                            ROOT_ACCESS_GRANTED
+                                        </span>
+                                        <button 
+                                            onClick={handleLogout}
+                                            className="px-3 py-1 border border-cyber-border hover:border-cyber-danger hover:text-cyber-danger transition-colors text-cyber-muted"
+                                        >
+                                            [LOGOUT]
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <form onSubmit={handleLogin} className="flex flex-wrap items-center gap-2 text-xs font-mono">
+                                        <span className="text-cyber-glow">{">"}</span>
+                                        <input 
+                                            type="text" 
+                                            placeholder="user" 
+                                            value={loginUser}
+                                            onChange={(e) => setLoginUser(e.target.value)}
+                                            className={`w-20 bg-transparent border-b ${loginError ? 'border-cyber-danger text-cyber-danger' : 'border-cyber-border focus:border-cyber-glow'} px-1 py-1 outline-none`}
+                                        />
+                                        <input 
+                                            type="password" 
+                                            placeholder="pass" 
+                                            value={loginPass}
+                                            onChange={(e) => setLoginPass(e.target.value)}
+                                            className={`w-24 bg-transparent border-b ${loginError ? 'border-cyber-danger text-cyber-danger' : 'border-cyber-border focus:border-cyber-glow'} px-1 py-1 outline-none`}
+                                        />
+                                        <button 
+                                            type="submit"
+                                            className="px-2 py-1 text-cyber-muted hover:text-cyber-glow hover:bg-cyber-glow/10 transition-colors"
+                                        >
+                                            [AUTH]
+                                        </button>
+                                    </form>
+                                )}
+                            </div>
+                        </header>
+
+                        {/* TABELA DE DADOS */}
+                        <div className="bg-cyber-panel border border-cyber-border rounded-lg shadow-2xl overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-[#18181b] border-b border-cyber-border text-xs font-mono text-cyber-muted uppercase">
+                                            <th className="p-4 font-semibold w-1/4">Colaborador</th>
+                                            <th className="p-4 font-semibold text-center w-32">Atrasos (Semana)</th>
+                                            <th className="p-4 font-semibold">Datas / Justificativas</th>
+                                            <th className="p-4 font-semibold text-center w-40">Remotos Perdidos</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-cyber-border text-sm font-mono">
+                                        {colaboradores.map((colab) => {
+                                            const remotosPerdidos = calcularRemotosPerdidos(colab.atrasos);
+                                            const temPenalidade = remotosPerdidos > 0;
+
+                                            return (
+                                                <tr key={colab.id} className="hover:bg-white/[0.02] transition-colors group">
+                                                    
+                                                    {/* 1. Nome (Fixo) */}
+                                                    <td className="p-4 font-sans font-medium text-cyber-text">
+                                                        {colab.nome}
+                                                    </td>
+                                                    
+                                                    {/* 2. Atrasos (Contador) */}
+                                                    <td className="p-4 text-center">
+                                                        <div className="flex items-center justify-center gap-3">
+                                                            {isAdmin && (
+                                                                <button 
+                                                                    onClick={() => alterarAtraso(colab.id, -1)}
+                                                                    className="text-cyber-muted hover:text-white w-6 h-6 flex items-center justify-center rounded bg-white/5 hover:bg-white/10 active:scale-95 transition-all"
+                                                                >-</button>
+                                                            )}
+                                                            <span className={`text-lg font-bold w-6 ${colab.atrasos > 0 ? 'text-cyber-glow' : 'text-cyber-muted'}`}>
+                                                                {colab.atrasos.toString().padStart(2, '0')}
+                                                            </span>
+                                                            {isAdmin && (
+                                                                <button 
+                                                                    onClick={() => alterarAtraso(colab.id, 1)}
+                                                                    className="text-cyber-muted hover:text-white w-6 h-6 flex items-center justify-center rounded bg-white/5 hover:bg-white/10 active:scale-95 transition-all"
+                                                                >+</button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    
+                                                    {/* 3. Datas / Justificativas */}
+                                                    <td className="p-4">
+                                                        <input 
+                                                            type="text"
+                                                            value={colab.justificativa}
+                                                            onChange={(e) => atualizarJustificativa(colab.id, e.target.value)}
+                                                            readOnly={!isAdmin}
+                                                            placeholder={isAdmin ? "Inserir data/motivo..." : "Nenhum registro."}
+                                                            className="cyber-input w-full p-2 text-sm rounded bg-transparent"
+                                                        />
+                                                    </td>
+                                                    
+                                                    {/* 4. Remotos Perdidos (Calculado) */}
+                                                    <td className="p-4 text-center">
+                                                        <div className={`inline-flex items-center justify-center px-3 py-1 rounded border ${temPenalidade ? 'border-cyber-danger/50 text-cyber-danger bg-cyber-danger/10' : 'border-cyber-border text-cyber-muted bg-transparent'}`}>
+                                                            {remotosPerdidos > 0 && <span className="mr-2">⚠</span>}
+                                                            {remotosPerdidos}
+                                                        </div>
+                                                    </td>
+                                                    
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        {/* FOOTER */}
+                        <div className="mt-8 flex justify-between items-center text-xs font-mono text-cyber-muted">
+                            <p>Modo atual: <span className={isAdmin ? 'text-emerald-400' : 'text-cyber-glow'}>{isAdmin ? 'WRITE (ADMIN)' : 'READ_ONLY (VIEWER)'}</span></p>
+                            <p>STATUS: <span className="text-emerald-400">ONLINE</span></p>
+                        </div>
+                        
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
+```
